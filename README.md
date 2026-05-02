@@ -1,47 +1,58 @@
 # promptcontrol
 
-## Prompt Control (Stateless Contract Enforcement)
+## Prompt Control Protocol
 
-`prompt_control` is a structural fixture that demonstrates deterministic contract
-enforcement for probabilistic LLM outputs.
+Prompt Control is a **contract enforcement engine** for probabilistic LLM outputs.
+It defines a deterministic validation protocol for structured JSON contracts in
+high-throughput agentic systems.
 
-### Why this exists
+## Objective
 
-LLMs are probabilistic generators. Even with structured outputs, large or complex
-contracts may occasionally return incomplete or partially filled objects.
+Guarantee that JSON outputs conform to a declared contract shape with:
 
-Prompt Control adds a lightweight validation loop:
+- deterministic key-level validation
+- low-latency execution under load
+- predictable behavior for enforcement loops
+- operational safety through explicit missing-field reporting
 
-1. Flatten the reference contract shape into canonical nested key paths.
-2. Build a Bloom filter from those expected key paths.
-3. Compare the returned JSON object key paths against the contract.
-4. Return:
-   - `completed` when all keys are present
-   - `missing_fields` + missing key list otherwise
+## Protocol Model
 
-This design is useful at scale because Bloom filters are fast and memory efficient.
-Combined with structured outputs from an LLM provider, they provide a performant
-contract-enforcement layer for heavy agentic workflows and large JSON objects.
+Prompt Control executes a stateless enforcement cycle:
 
-### Included fixtures
+1. Canonicalize the reference contract into nested key paths.
+2. Build a key-membership index:
+   - Bloom filter (fast probabilistic gate)
+   - exact key map (authoritative verifier)
+3. Canonicalize returned LLM JSON into nested key paths.
+4. Enforce contract membership:
+   - `completed` when all required keys exist
+   - `missing_fields` with deterministic sorted missing keys otherwise
 
-- `prompt_control.go`
-  - Standalone, stateless Go implementation.
-  - Includes Bloom filter + exact map check for deterministic correctness.
-- `prompt_control.py`
-  - Python equivalent with the same architecture and semantics.
-  - Useful for demos, notebooks, and portability across stacks.
+## Security / Reliability Posture
 
-### Core guarantees
+- **Stateless core**: no hidden runtime state; safe for concurrent integration.
+- **Deterministic output**: stable missing-key ordering for reproducible behavior.
+- **Authoritative verification**: exact key map prevents Bloom false-positive drift.
+- **Protocol-first semantics**: explicit result states support strict orchestration.
 
-- Stateless algorithm engine.
-- Deterministic missing-key output (sorted).
-- Fast membership checks via Bloom filter.
-- Exact authoritative key map to avoid false-positive drift.
+## Performance Characteristics
 
-### Typical workflow
+- Bloom filter membership checks provide low-overhead pre-validation.
+- Memory footprint remains efficient even for large contract key sets.
+- Suitable for large JSON contracts and high-frequency validation loops.
 
-1. Ask LLM for structured output (JSON contract).
-2. Run Prompt Control validation.
-3. If missing fields remain, re-prompt LLM with missing-key list.
-4. Repeat until contract is complete or retry policy decides best-effort fallback.
+## Industrial Integration Pattern
+
+Prompt Control is intended to be paired with structured outputs:
+
+1. Request structured JSON from LLM/provider.
+2. Validate using Prompt Control.
+3. Re-prompt with missing-key list if incomplete.
+4. Continue until policy-complete or policy-exhausted.
+
+This yields fast, reliable, contract-compliant behavior at scale.
+
+## Artifacts
+
+- `prompt_control.go`: standalone Go protocol fixture
+- `prompt_control.py`: Python protocol-equivalent fixture
