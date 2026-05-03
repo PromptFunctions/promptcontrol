@@ -1,18 +1,41 @@
-# promptcontrol
+# Prompt Control Protocol
 
-## Prompt Control Protocol
+## The bridge between the probabilistic and deterministic worlds
 
 Prompt Control is a **contract enforcement engine** for probabilistic LLM outputs.
-It defines a deterministic validation protocol for structured JSON contracts.
+It leverages Bloom filters to define a deterministic validation protocol for structured JSON contracts.
+
+## Issue
+As LLMs are probabilistic systems, there is no user-side enforcement for reliable response formats.
+Even when using "structured outputs", LLM responses still might forget keys or leave them empty. 
 
 ## Objective
-
-Guarantee that JSON outputs conform to a declared contract shape with:
+PrompControl offers a contract enforcement strategy that guarantees JSON outputs conform to a declared contract shape with:
 
 - deterministic key-level validation
 - low-latency execution under load
 - predictable behavior for enforcement loops
 - operational safety through explicit missing-field reporting
+ 
+## Result
+Move from best effort to **contract-based workflows** and scale your LLM workflows without worrying about conformity.
+PromptControl allows you to enforce deterministic communication:
+
+- guarantees structured, repeatable outputs across LLM pipelines
+- enables high-compliance chatbots workflows (forms, step-driven operations, strict schemas)
+- supports reliable agent-to-agent coordination and data exchange
+- any environment where consistency and strict formats are required
+
+## Contract Based Workflows
+
+Prompt Control is intended to be paired with structured outputs when strict contract compliance is required in your application or between agents
+
+1. Request structured JSON from LLM/provider.
+2. Validate using Prompt Control.
+3. Re-prompt with missing-key list if incomplete.
+4. Continue until policy-complete or policy-exhausted.
+
+This yields fast, reliable, contract-compliant behavior at scale.
 
 ## Protocol Model
 
@@ -39,17 +62,6 @@ Prompt Control executes a stateless enforcement workflow:
 - Bloom filter membership checks provide low-overhead pre-validation.
 - Memory footprint remains efficient even for large contract key sets.
 - Suitable for large JSON contracts and high-frequency validation loops.
-
-## Contract Based Workflows
-
-Prompt Control is intended to be paired with structured outputs when strict contract compliance is required in your application or between agents
-
-1. Request structured JSON from LLM/provider.
-2. Validate using Prompt Control.
-3. Re-prompt with missing-key list if incomplete.
-4. Continue until policy-complete or policy-exhausted.
-
-This yields fast, reliable, contract-compliant behavior at scale.
 
 ## Artifacts
 
