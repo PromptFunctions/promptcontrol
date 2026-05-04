@@ -37,6 +37,28 @@ Prompt Control is intended to be paired with structured outputs when strict cont
 
 This yields fast, reliable, contract-compliant behavior at scale.
 
+## Integration With `dev-contracts` (SCL DSL)
+
+`PromptControl` and `dev-contracts` solve different layers of the same workflow:
+
+- `dev-contracts`: defines contracts in SCL Markdown and parses them into structured data (and optional template generation).
+- `PromptControl`: enforces that LLM structured-output JSON actually matches the expected contract key structure.
+
+Combined high-fidelity workflow:
+
+1. SCL contract input.
+2. Parse with `dev-contracts/scl` into structured contract data.
+3. Use that contract shape as the reference for LLM structured outputs.
+4. Validate each returned JSON with `PromptControl` Bloom-filter + exact-map enforcement.
+5. If incomplete, re-prompt using missing-key feedback until complete.
+6. Optionally render final contract text from the returned JSON using the generated template.
+
+Usage modes:
+
+- `dev-contracts` alone: contract-based workflow without caller-side key enforcement.
+- `PromptControl` alone: enforcement for any contract shape you already have.
+- Together (recommended): highly compliant, highly structured contract workflows with deterministic caller-side enforcement.
+
 ## Protocol Model
 
 Prompt Control executes a stateless enforcement workflow:
