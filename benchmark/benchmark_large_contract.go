@@ -38,13 +38,13 @@ import (
 	"sync"
 	"time"
 
-	"github.com/PromptFunctions/promptcontrol"
+	promptcontrol "github.com/PromptFunctions/promptcontrol/JSONContractValidator"
 )
 
 const (
-	totalKeys = 800
-	runs      = 200
-	model     = "gpt-4o-mini"
+	totalKeys  = 800
+	runs       = 200
+	model      = "gpt-4o-mini"
 	maxPreview = 5
 )
 

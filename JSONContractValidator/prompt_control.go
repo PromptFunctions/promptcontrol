@@ -13,8 +13,8 @@ Why Bloom filters are used:
 Important architecture decision:
 - Bloom filters can have false positives.
 - For deterministic correctness, this implementation uses:
-  1) Bloom filter as a fast pre-check
-  2) Exact map membership as the authoritative check
+ 1. Bloom filter as a fast pre-check
+ 2. Exact map membership as the authoritative check
 
 Anatomy:
 1) Flatten the contract shape into canonical nested key paths.
@@ -22,8 +22,8 @@ Anatomy:
 3) Build Bloom filter + exact key map from contract keys.
 4) Detect missing keys deterministically.
 5) Return:
-   - "completed" when no key is missing
-   - "missing_fields" with a sorted list otherwise
+  - "completed" when no key is missing
+  - "missing_fields" with a sorted list otherwise
 */
 package promptcontrol
 

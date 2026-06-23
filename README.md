@@ -1,91 +1,69 @@
-# Prompt Control Protocol
+# Prompt Control
 
-## The bridge between the probabilistic and deterministic worlds
+Prompt Control is the repo that combines two pieces of the same contract workflow:
 
-Prompt Control is a **contract enforcement engine** for probabilistic LLM outputs.
-It leverages Bloom filters to define a deterministic validation protocol for structured JSON contracts.
+- `JSONContractValidator`: deterministic JSON contract enforcement
+- `DevContracts`: SCML contract definitions, parsing, and template generation
 
-## Issue
-As LLMs are probabilistic systems, there is no user-side enforcement for reliable response formats.
-Even when using "structured outputs", LLM responses still might forget keys or leave them empty. 
+## How The Pieces Fit
 
-## Objective
-PrompControl offers a contract enforcement strategy that guarantees JSON outputs conform to a declared contract shape with:
+1. `DevContracts` parses an SCML contract into a structured Go contract model.
+2. Your application uses that model as the reference shape for structured LLM outputs.
+3. `JSONContractValidator` checks the returned JSON against the reference shape.
+4. `DevContracts` can also render the final contract text from the validated result.
 
-- deterministic key-level validation
-- low-latency execution under load
-- predictable behavior for enforcement loops
-- operational safety through explicit missing-field reporting
- 
-## Result
-Move from best effort to **contract-based workflows** and scale your LLM workflows without worrying about conformity.
-PromptControl allows you to enforce deterministic communication:
+Used together, they give you a contract-based workflow that is human-readable, machine-checkable, and deterministic.
 
-- guarantees structured, repeatable outputs across LLM pipelines
-- enables high-compliance chatbots workflows (forms, step-driven operations, strict schemas)
-- supports reliable agent-to-agent coordination and data exchange
-- any environment where consistency and strict formats are required
+## Quick Import Paths
 
-## Contract Based Workflows
+```go
+import (
+    promptcontrol "github.com/PromptFunctions/promptcontrol/JSONContractValidator"
+    "github.com/PromptFunctions/promptcontrol/DevContracts/scml"
+)
+```
 
-Prompt Control is intended to be paired with structured outputs when strict contract compliance is required in your application or between agents
+## When To Read Which README
 
-1. Request structured JSON from LLM/provider.
-2. Validate using Prompt Control.
-3. Re-prompt with missing-key list if incomplete.
-4. Continue until policy-complete or policy-exhausted.
+- Read [DevContracts/README.md](DevContracts/README.md) if you are authoring or parsing SCML contracts.
+- Read [JSONContractValidator/README.md](JSONContractValidator/README.md) if you are validating structured JSON outputs.
 
-This yields fast, reliable, contract-compliant behavior at scale.
+## Minimal Example
 
-## Integration With `dev-contracts` (SCL DSL)
+```go
+package main
 
-`PromptControl` and `dev-contracts` solve different layers of the same workflow:
+import (
+    "fmt"
+    "log"
+    "os"
 
-- `dev-contracts`: defines contracts in SCL Markdown and parses them into structured data (and optional template generation).
-- `PromptControl`: enforces that LLM structured-output JSON actually matches the expected contract key structure.
+    promptcontrol "github.com/PromptFunctions/promptcontrol/JSONContractValidator"
+    "github.com/PromptFunctions/promptcontrol/DevContracts/scml"
+)
 
-Combined high-fidelity workflow:
+func main() {
+    contractPath := os.Args[1]
+    contract, err := scml.ParseFile(contractPath)
+    if err != nil {
+        log.Fatal(err)
+    }
 
-1. SCL contract input.
-2. Parse with `dev-contracts/scl` into structured contract data.
-3. Use that contract shape as the reference for LLM structured outputs.
-4. Validate each returned JSON with `PromptControl` Bloom-filter + exact-map enforcement.
-5. If incomplete, re-prompt using missing-key feedback until complete.
-6. Optionally render final contract text from the returned JSON using the generated template.
+    _ = contract // parse the contract source of truth first
 
-Usage modes:
+    type ReferenceShape struct {
+        Issue struct {
+            Description []string `json:"description"`
+        } `json:"issue"`
+    }
 
-- `dev-contracts` alone: contract-based workflow without caller-side key enforcement.
-- `PromptControl` alone: enforcement for any contract shape you already have.
-- Together (recommended): highly compliant, highly structured contract workflows with deterministic caller-side enforcement.
+    payload := map[string]any{}
+    status, missing := promptcontrol.JSONContract(payload, ReferenceShape{})
+    fmt.Println(status, missing)
+}
+```
 
-## Protocol Model
+## Repo Layout
 
-Prompt Control executes a stateless enforcement workflow:
-
-1. Canonicalize the reference contract into nested key paths.
-2. Build a key-membership index:
-   - Bloom filter (fast probabilistic gate)
-   - exact key map (authoritative verifier)
-3. Canonicalize returned LLM JSON into nested key paths.
-4. Enforce contract membership:
-   - `completed` when all required keys exist
-   - `missing_fields` with deterministic sorted missing keys otherwise
-
-## Security / Reliability Posture
-
-- **Stateless core**: no hidden runtime state; safe for concurrent integration.
-- **Deterministic output**: stable missing-key ordering for reproducible behavior.
-- **Authoritative verification**: exact key map prevents Bloom false-positive drift.
-- **Protocol-first semantics**: explicit result states support strict orchestration.
-
-## Performance Characteristics
-
-- Bloom filter membership checks provide low-overhead pre-validation.
-- Memory footprint remains efficient even for large contract key sets.
-- Suitable for large JSON contracts and high-frequency validation loops.
-
-## Artifacts
-
-- `prompt_control.go`: Go protocol fixture
-- `prompt_control.py`: Python protocol fixture
+- `JSONContractValidator/` - JSON enforcement engine
+- `DevContracts/` - SCML contract parser, templates, and contract sources
