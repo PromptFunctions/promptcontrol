@@ -5,7 +5,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/PromptFunctions/promptcontrol/DevContracts/scml"
+	"github.com/PromptFunctions/promptcontrol/dev-contracts/scml"
 )
 
 func TestSCMLPolicyAllowlist(t *testing.T) {
@@ -18,34 +18,34 @@ func TestSCMLPolicyAllowlist(t *testing.T) {
 
 	policy := contract.PolicyView()
 	if got, want := policy.WriteAllowlist, []string{
-		"/workspace/allowed.go",
-		"/workspace/config.yaml",
+		"allowed.go",
+		"config.yaml",
 	}; !equalStringSlices(got, want) {
 		t.Fatalf("unexpected write allowlist: got %v want %v", got, want)
 	}
 	if got, want := policy.PermissionTable, []scml.PermissionEntry{
-		{Path: "/workspace/allowed.go", Write: true},
-		{Path: "/workspace/config.yaml", Write: true},
+		{Path: "allowed.go", Write: true},
+		{Path: "config.yaml", Write: true},
 	}; !equalPermissionEntries(got, want) {
 		t.Fatalf("unexpected permission table: got %v want %v", got, want)
 	}
-	if got, want := policy.ReadAllowlist, []string{"/workspace/input.txt"}; !equalStringSlices(got, want) {
+	if got, want := policy.ReadAllowlist, []string{"input.txt"}; !equalStringSlices(got, want) {
 		t.Fatalf("unexpected read allowlist: got %v want %v", got, want)
 	}
 
-	if !policy.Allows(scml.PolicyActionWrite, "/workspace/allowed.go") {
-		t.Fatalf("expected write access to /workspace/allowed.go")
+	if !policy.Allows(scml.PolicyActionWrite, "allowed.go") {
+		t.Fatalf("expected write access to allowed.go")
 	}
-	if policy.Allows(scml.PolicyActionWrite, "/workspace/blocked.go") {
-		t.Fatalf("expected write access to /workspace/blocked.go to be denied")
+	if policy.Allows(scml.PolicyActionWrite, "blocked.go") {
+		t.Fatalf("expected write access to blocked.go to be denied")
 	}
-	if !policy.Allows(scml.PolicyActionRead, "/workspace/input.txt") {
-		t.Fatalf("expected read access to /workspace/input.txt")
+	if !policy.Allows(scml.PolicyActionRead, "input.txt") {
+		t.Fatalf("expected read access to input.txt")
 	}
 	if policy.Allows(scml.PolicyActionRead, "../workspace/input.txt") {
 		t.Fatalf("expected normalized traversal path to be denied")
 	}
-	if policy.Allows("delete", "/workspace/allowed.go") {
+	if policy.Allows("delete", "allowed.go") {
 		t.Fatalf("unexpected access for unsupported action")
 	}
 }
@@ -53,9 +53,20 @@ func TestSCMLPolicyAllowlist(t *testing.T) {
 func writePolicyContractFixture(t *testing.T) string {
 	t.Helper()
 
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, "allowed.go"), []byte("package main\n"), 0o600); err != nil {
+		t.Fatalf("WriteFile allowed.go failed: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "config.yaml"), []byte("name: config\n"), 0o600); err != nil {
+		t.Fatalf("WriteFile config.yaml failed: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "input.txt"), []byte("input\n"), 0o600); err != nil {
+		t.Fatalf("WriteFile input.txt failed: %v", err)
+	}
+
 	content := `# Policy Contract
 
-<!-- <contract> -->
+<!-- <scml> -->
 <!-- <constants> -->
 <pre>
 SCOPE_CORE = "changes limited to explicitly listed files and functions"
@@ -64,18 +75,18 @@ SCOPE_CORE = "changes limited to explicitly listed files and functions"
 
 <!-- <section name="WRITES" data-type="file-list" data-policy="write"> -->
 ## WRITES
-  - /workspace/allowed.go
-  - /workspace/config.yaml
+  - allowed.go
+  - config.yaml
 <!-- </section> -->
 
 <!-- <section name="READS" data-type="read-list"> -->
 ## READS
-  - /workspace/input.txt
+  - input.txt
 <!-- </section> -->
-<!-- </contract> -->
+<!-- </scml> -->
 `
 
-	path := filepath.Join(t.TempDir(), "policy-contract.md")
+	path := filepath.Join(dir, "policy-contract.md")
 	if err := os.WriteFile(path, []byte(content), 0o600); err != nil {
 		t.Fatalf("WriteFile failed: %v", err)
 	}

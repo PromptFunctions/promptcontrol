@@ -1,6 +1,6 @@
 # Beta Contract
 
-<!-- <contract> -->
+<!-- <scml> -->
 <!-- <constants> -->
 <pre>
 BETA_ROOT = "/workspace/beta"
@@ -23,4 +23,4 @@ BETA_INPUT = "/workspace/input.txt"
   - ${BETA_ROOT}/archive/report.tar
   <!-- </section> -->
 <!-- </section> -->
-<!-- </contract> -->
+<!-- </scml> -->

@@ -1,6 +1,6 @@
-# DevContracts
+# dev-contracts
 
-`DevContracts` is the SCML side of Prompt Control. It defines the contract language, parses contract sources, and generates renderable contract data.
+`dev-contracts` is the SCML side of Prompt Control. It defines the contract language, parses contract sources, and generates renderable contract data.
 
 ## What It Does
 
@@ -18,7 +18,7 @@ if err != nil {
     // handle parse/validation error
 }
 
-fmt.Println(contract.Sections["ISSUE"])
+fmt.Println(contract.Sections["issue"])
 fmt.Println(contract.Constants["SCOPE_CORE"])
 render := contract.RenderView()
 tplText := contract.GoTemplate()
@@ -41,10 +41,10 @@ type Contract struct {
 
 SCML here uses XML-like tags inside HTML comments and is validated strictly.
 
-- root element: `<contract>`
+- root element: `<scml>`
 - constants element: `<constants><pre>...</pre></constants>`
 - sections: `<section name="...">`
-- allowed attribute: `name`
+- section attributes: `name`, `depends-on`, `data-type`, `data-policy`, `data-source`
 - content items: `- ...`
 - constant references in content: `${KEY}`
 
@@ -65,13 +65,13 @@ Nested sections are expressed by nesting `<section>` elements.
 Import path:
 
 ```go
-import "github.com/PromptFunctions/promptcontrol/DevContracts/scml"
+import "github.com/PromptFunctions/promptcontrol/dev-contracts/scml"
 ```
 
 Install:
 
 ```bash
-go get github.com/PromptFunctions/promptcontrol/DevContracts/scml
+go get github.com/PromptFunctions/promptcontrol/dev-contracts/scml
 ```
 
 Minimal example:
@@ -87,7 +87,7 @@ import (
     "strings"
     "text/template"
 
-    "github.com/PromptFunctions/promptcontrol/DevContracts/scml"
+    "github.com/PromptFunctions/promptcontrol/dev-contracts/scml"
 )
 
 func main() {
@@ -97,7 +97,7 @@ func main() {
         log.Fatal(err)
     }
 
-    fmt.Println(contract.Sections["ISSUE"])
+    fmt.Println(contract.Sections["issue"])
 
     out, err := json.MarshalIndent(contract.RenderView(), "", "  ")
     if err != nil {
@@ -120,7 +120,7 @@ func main() {
 
 ## Relationship To Prompt Control
 
-`DevContracts` defines the contract shape.
-`JSONContractValidator` enforces that a returned JSON object matches that shape.
+`dev-contracts` defines the contract shape.
+`gating` enforces that a returned JSON object matches that shape.
 
 Read [../README.md](../README.md) for the combined workflow overview.

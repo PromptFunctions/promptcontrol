@@ -7,7 +7,7 @@ import (
 
 const contractTemplate = `# {{ .Title }}
 
-<!-- <contract> -->
+<!-- <scml> -->
 <!-- <constants> -->
 <pre>
 {{- range .Constants }}
@@ -16,11 +16,32 @@ const contractTemplate = `# {{ .Title }}
 <!-- </constants> -->
 {{- range .Sections }}
 {{ renderSection . }}{{- end }}
-<!-- </contract> -->`
+<!-- </scml> -->`
 
 type RenderContract struct {
-	Constants []ConstantEntry `json:"Constants"`
-	Sections  []SectionEntry  `json:"Sections"`
+	Title     string               `json:"Title"`
+	Constants []ConstantEntry      `json:"Constants"`
+	Sections  []RenderSectionEntry `json:"Sections"`
+}
+
+type RenderRouteEntry struct {
+	Term       string   `json:"Term"`
+	Path       string   `json:"Path"`
+	DependsOn  string   `json:"DependsOn,omitempty"`
+	DataSource string   `json:"DataSource,omitempty"`
+	DataType   string   `json:"DataType,omitempty"`
+	DataPolicy string   `json:"DataPolicy,omitempty"`
+	Items      []string `json:"Items"`
+}
+
+type RenderSectionEntry struct {
+	Name       string             `json:"Name"`
+	DependsOn  string             `json:"DependsOn,omitempty"`
+	DataSource string             `json:"DataSource,omitempty"`
+	DataType   string             `json:"DataType,omitempty"`
+	DataPolicy string             `json:"DataPolicy,omitempty"`
+	Items      []string           `json:"Items,omitempty"`
+	Routes     []RenderRouteEntry `json:"Routes,omitempty"`
 }
 
 type TemplateConstant struct {
@@ -32,6 +53,8 @@ type TemplateConstant struct {
 type TemplateRoute struct {
 	Term       string
 	Path       string
+	DependsOn  string
+	DataSource string
 	DataType   string
 	DataPolicy string
 	Items      []string
@@ -41,6 +64,8 @@ type TemplateRoute struct {
 
 type TemplateSection struct {
 	Name       string
+	DependsOn  string
+	DataSource string
 	DataType   string
 	DataPolicy string
 	Items      []string
@@ -58,15 +83,54 @@ func (c *Contract) RenderView() RenderContract {
 	constants := make([]ConstantEntry, len(c.OrderedConstants))
 	copy(constants, c.OrderedConstants)
 
-	sections := make([]SectionEntry, len(c.OrderedSections))
+	sections := make([]RenderSectionEntry, len(c.OrderedSections))
 	for i := range c.OrderedSections {
-		sections[i] = copySectionEntry(c.OrderedSections[i])
+		sections[i] = RenderSectionEntry{
+			Name:       c.OrderedSections[i].Name,
+			DependsOn:  c.OrderedSections[i].DependsOn,
+			DataSource: c.OrderedSections[i].DataSource,
+			DataType:   c.OrderedSections[i].DataType,
+			DataPolicy: c.OrderedSections[i].DataPolicy,
+			Items:      copyStringSlice(c.OrderedSections[i].Items),
+			Routes:     flattenRenderRoutes(c.OrderedSections[i].Routes),
+		}
 	}
 
 	return RenderContract{
+		Title:     c.Title,
 		Constants: constants,
 		Sections:  sections,
 	}
+}
+
+func flattenRenderRoutes(routes []RouteNode) []RenderRouteEntry {
+	out := make([]RenderRouteEntry, 0, countRenderRoutes(routes))
+	return appendFlattenedRenderRoutes(out, routes)
+}
+
+func appendFlattenedRenderRoutes(out []RenderRouteEntry, routes []RouteNode) []RenderRouteEntry {
+	for i := range routes {
+		out = append(out, RenderRouteEntry{
+			Term:       routes[i].Term,
+			Path:       routes[i].Path,
+			DependsOn:  routes[i].DependsOn,
+			DataSource: routes[i].DataSource,
+			DataType:   routes[i].DataType,
+			DataPolicy: routes[i].DataPolicy,
+			Items:      copyStringSlice(routes[i].Items),
+		})
+		out = appendFlattenedRenderRoutes(out, routes[i].Children)
+	}
+	return out
+}
+
+func countRenderRoutes(routes []RouteNode) int {
+	total := 0
+	for i := range routes {
+		total++
+		total += countRenderRoutes(routes[i].Children)
+	}
+	return total
 }
 
 func (c *Contract) TemplateView() TemplateContract {
@@ -96,6 +160,8 @@ func (c *Contract) TemplateView() TemplateContract {
 	for i := range c.OrderedSections {
 		sections[i] = TemplateSection{
 			Name:       c.OrderedSections[i].Name,
+			DependsOn:  c.OrderedSections[i].DependsOn,
+			DataSource: c.OrderedSections[i].DataSource,
 			DataType:   c.OrderedSections[i].DataType,
 			DataPolicy: c.OrderedSections[i].DataPolicy,
 			Items:      copyStringSlice(c.OrderedSections[i].Items),
@@ -132,6 +198,16 @@ func renderTemplateSection(section TemplateSection) string {
 	builder.WriteString("<!-- <section name=\"")
 	builder.WriteString(section.Name)
 	builder.WriteByte('"')
+	if section.DependsOn != "" {
+		builder.WriteString(" depends-on=\"")
+		builder.WriteString(section.DependsOn)
+		builder.WriteByte('"')
+	}
+	if section.DataSource != "" {
+		builder.WriteString(" data-source=\"")
+		builder.WriteString(section.DataSource)
+		builder.WriteByte('"')
+	}
 	if section.DataType != "" {
 		builder.WriteString(" data-type=\"")
 		builder.WriteString(section.DataType)
@@ -163,6 +239,16 @@ func renderTemplateRoute(route TemplateRoute) string {
 	builder.WriteString("<!-- <section name=\"")
 	builder.WriteString(route.Term)
 	builder.WriteByte('"')
+	if route.DependsOn != "" {
+		builder.WriteString(" depends-on=\"")
+		builder.WriteString(route.DependsOn)
+		builder.WriteByte('"')
+	}
+	if route.DataSource != "" {
+		builder.WriteString(" data-source=\"")
+		builder.WriteString(route.DataSource)
+		builder.WriteByte('"')
+	}
 	if route.DataType != "" {
 		builder.WriteString(" data-type=\"")
 		builder.WriteString(route.DataType)

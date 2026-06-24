@@ -5,14 +5,16 @@ var SCMLLanguageConventions = struct {
 	Attributes map[string]struct{}
 }{
 	Types: map[string]struct{}{
-		"contract":  {},
+		"scml":      {},
 		"constants": {},
 		"pre":       {},
 		"section":   {},
 	},
 	Attributes: map[string]struct{}{
 		"name":        {},
+		"depends-on":  {},
 		"data-type":   {},
 		"data-policy": {},
+		"data-source": {},
 	},
 }

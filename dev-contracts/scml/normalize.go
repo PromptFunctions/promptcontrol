@@ -9,8 +9,8 @@ import (
 )
 
 const (
-	scmlContractOpenComment   = "<!-- <contract> -->"
-	scmlContractCloseComment  = "<!-- </contract> -->"
+	scmlContractOpenComment   = "<!-- <scml> -->"
+	scmlContractCloseComment  = "<!-- </scml> -->"
 	scmlConstantsOpenComment  = "<!-- <constants> -->"
 	scmlConstantsCloseComment = "<!-- </constants> -->"
 	scmlSectionCloseComment   = "<!-- </section> -->"
@@ -40,17 +40,17 @@ func normalizeSCMLDocument(content string) (string, error) {
 		switch {
 		case line == scmlContractOpenComment:
 			if inContract {
-				return "", fmt.Errorf("line %d: duplicate <!-- <contract> --> marker", lineNo)
+				return "", fmt.Errorf("line %d: duplicate <!-- <scml> --> marker", lineNo)
 			}
 			if sawContractClose {
-				return "", fmt.Errorf("line %d: duplicate <!-- <contract> --> marker after contract close", lineNo)
+				return "", fmt.Errorf("line %d: duplicate <!-- <scml> --> marker after contract close", lineNo)
 			}
 			inContract = true
-			out.WriteString("<contract>")
+			out.WriteString("<scml>")
 			continue
 		case line == scmlContractCloseComment:
 			if !inContract {
-				return "", fmt.Errorf("line %d: unexpected <!-- </contract> --> marker", lineNo)
+				return "", fmt.Errorf("line %d: unexpected <!-- </scml> --> marker", lineNo)
 			}
 			if inConstants || inPre {
 				return "", fmt.Errorf("line %d: contract closed before <constants> block completed", lineNo)
@@ -61,14 +61,14 @@ func normalizeSCMLDocument(content string) (string, error) {
 			if !sawConstantsClose {
 				return "", fmt.Errorf("line %d: contract must contain a complete <constants> block", lineNo)
 			}
-			out.WriteString("</contract>")
+			out.WriteString("</scml>")
 			inContract = false
 			sawContractClose = true
 			continue
 		case !inContract:
 			if sawContractClose {
 				if line != "" {
-					return "", fmt.Errorf("line %d: content after <!-- </contract> --> is not allowed", lineNo)
+					return "", fmt.Errorf("line %d: content after <!-- </scml> --> is not allowed", lineNo)
 				}
 				continue
 			}
@@ -200,7 +200,7 @@ func normalizeSCMLDocument(content string) (string, error) {
 		return "", fmt.Errorf("scan SCML content: %w", err)
 	}
 	if inContract {
-		return "", fmt.Errorf("SCML contract root <!-- <contract> --> not closed")
+		return "", fmt.Errorf("SCML contract root <!-- <scml> --> not closed")
 	}
 	if inConstants || inPre {
 		return "", fmt.Errorf("SCML contract ended inside <constants> block")

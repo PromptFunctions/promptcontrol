@@ -1,9 +1,6 @@
 package scml
 
-import (
-	"path/filepath"
-	"strings"
-)
+import "strings"
 
 const (
 	PolicyActionRead  = "read"
@@ -116,7 +113,7 @@ func addPermissionEntry(out *[]PermissionEntry, seen map[string]struct{}, raw st
 }
 
 func normalizePolicyPath(path string) string {
-	return filepath.Clean(strings.TrimSpace(path))
+	return cleanPath(path)
 }
 
 func containsPolicyPath(paths []string, target string) bool {

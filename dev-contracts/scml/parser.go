@@ -4,7 +4,8 @@ import (
 	"bufio"
 	"encoding/xml"
 	"fmt"
-	"os"
+	"io"
+	"path/filepath"
 	"strconv"
 	"strings"
 )
@@ -15,15 +16,49 @@ var sectionDataTypeValues = map[string]struct{}{
 }
 
 func ParseFile(path string) (*Contract, error) {
-	contentBytes, err := os.ReadFile(path)
+	return ParseFileWithOptions(path, nil)
+}
+
+func ParseFileWithOptions(path string, opts *ParseOptions) (*Contract, error) {
+	loader := newDependencyLoaderWithOptions(resolveParseOptions(opts))
+	return loader.load(path)
+}
+
+func Parse(r io.Reader, opts *ParseOptions) (*Contract, error) {
+	resolved := resolveParseOptions(opts)
+	loader := newDependencyLoaderWithOptions(resolved)
+	return loader.loadFromReader(r, resolved.baseDir)
+}
+
+func parseLocalContractFile(path string, fs FileSystem) (*Contract, error) {
+	contentBytes, err := fs.ReadFile(path)
 	if err != nil {
 		return nil, fmt.Errorf("read file %q: %w", path, err)
 	}
+	baseDir, err := contractSourceDir(path)
+	if err != nil {
+		return nil, err
+	}
+	return parseContractContent(string(contentBytes), baseDir)
+}
 
-	content := string(contentBytes)
+func parseContractFromReader(r io.Reader, baseDir string) (*Contract, error) {
+	contentBytes, err := io.ReadAll(r)
+	if err != nil {
+		return nil, fmt.Errorf("read SCML content: %w", err)
+	}
+	return parseContractContent(string(contentBytes), cleanPath(baseDir))
+}
+
+func parseContractContent(content, baseDir string) (*Contract, error) {
 	title := parseTitle(content)
 
-	xmlContent, err := normalizeSCMLDocument(content)
+	imports, filteredContent, err := collectImportDeclarations(content)
+	if err != nil {
+		return nil, err
+	}
+
+	xmlContent, err := normalizeSCMLDocument(filteredContent)
 	if err != nil {
 		return nil, err
 	}
@@ -32,24 +67,46 @@ func ParseFile(path string) (*Contract, error) {
 	if err != nil {
 		return nil, err
 	}
+	if err := validateSectionDependencies(orderedSections); err != nil {
+		return nil, err
+	}
 
 	if err := resolveConstants(orderedSections, constantsMap); err != nil {
 		return nil, err
 	}
+	assignSectionSourceDirs(orderedSections, baseDir)
 
-	sectionsMap := make(map[string][]string, len(orderedSections))
-	for _, section := range orderedSections {
-		sectionsMap[section.Name] = copyStringSlice(section.Items)
-	}
-
-	return &Contract{
+	contract := &Contract{
 		Title:            title,
-		Sections:         sectionsMap,
+		Imports:          imports,
 		Constants:        constantsMap,
-		SectionRoutes:    buildSectionRoutes(orderedSections),
 		OrderedConstants: orderedConstants,
 		OrderedSections:  orderedSections,
-	}, nil
+	}
+	refreshContractViews(contract)
+	return contract, nil
+}
+
+func contractSourceDir(path string) (string, error) {
+	resolved, err := filepath.Abs(path)
+	if err != nil {
+		return "", err
+	}
+	return filepath.Dir(resolved), nil
+}
+
+func assignSectionSourceDirs(sections []SectionEntry, baseDir string) {
+	for i := range sections {
+		sections[i].sourceDir = baseDir
+		assignRouteSourceDirs(sections[i].Routes, baseDir)
+	}
+}
+
+func assignRouteSourceDirs(routes []RouteNode, baseDir string) {
+	for i := range routes {
+		routes[i].sourceDir = baseDir
+		assignRouteSourceDirs(routes[i].Children, baseDir)
+	}
 }
 
 func parseNormalizedSCMLDocument(xmlContent string) ([]ConstantEntry, map[string]string, []SectionEntry, error) {
@@ -63,26 +120,26 @@ func parseNormalizedSCMLDocument(xmlContent string) ([]ConstantEntry, map[string
 
 		switch t := tok.(type) {
 		case xml.StartElement:
-			if t.Name.Local != "contract" {
+			if t.Name.Local != "scml" {
 				return nil, nil, nil, fmt.Errorf("unexpected root element <%s>", t.Name.Local)
 			}
 			if err := validateStartElement(t); err != nil {
 				return nil, nil, nil, err
 			}
-			return parseContractElement(decoder, t)
+			return parseSCMLElement(decoder, t)
 		case xml.CharData:
 			if strings.TrimSpace(string(t)) != "" {
-				return nil, nil, nil, fmt.Errorf("non-whitespace content before <contract> is not allowed")
+				return nil, nil, nil, fmt.Errorf("non-whitespace content before <scml> is not allowed")
 			}
 		case xml.Comment, xml.Directive, xml.ProcInst:
 			// Ignore.
 		default:
-			return nil, nil, nil, fmt.Errorf("unsupported token before <contract>: %T", tok)
+			return nil, nil, nil, fmt.Errorf("unsupported token before <scml>: %T", tok)
 		}
 	}
 }
 
-func parseContractElement(decoder *xml.Decoder, start xml.StartElement) ([]ConstantEntry, map[string]string, []SectionEntry, error) {
+func parseSCMLElement(decoder *xml.Decoder, start xml.StartElement) ([]ConstantEntry, map[string]string, []SectionEntry, error) {
 	orderedConstants := make([]ConstantEntry, 0, 16)
 	constantsMap := make(map[string]string)
 	orderedSections := make([]SectionEntry, 0, 16)
@@ -92,7 +149,7 @@ func parseContractElement(decoder *xml.Decoder, start xml.StartElement) ([]Const
 	for {
 		tok, err := decoder.Token()
 		if err != nil {
-			return nil, nil, nil, fmt.Errorf("parse <contract>: %w", err)
+			return nil, nil, nil, fmt.Errorf("parse <scml>: %w", err)
 		}
 
 		switch t := tok.(type) {
@@ -124,6 +181,8 @@ func parseContractElement(decoder *xml.Decoder, start xml.StartElement) ([]Const
 				}
 				orderedSections = append(orderedSections, SectionEntry{
 					Name:       section.Term,
+					DependsOn:  section.DependsOn,
+					DataSource: section.DataSource,
 					DataType:   section.DataType,
 					DataPolicy: section.DataPolicy,
 					Items:      copyStringSlice(section.Items),
@@ -131,26 +190,26 @@ func parseContractElement(decoder *xml.Decoder, start xml.StartElement) ([]Const
 				})
 				sawSection = true
 			default:
-				return nil, nil, nil, fmt.Errorf("unknown XML element <%s> inside <contract>", t.Name.Local)
+				return nil, nil, nil, fmt.Errorf("unknown XML element <%s> inside <scml>", t.Name.Local)
 			}
 		case xml.CharData:
 			if strings.TrimSpace(string(t)) != "" {
-				return nil, nil, nil, fmt.Errorf("non-whitespace content inside <contract> is not allowed")
+				return nil, nil, nil, fmt.Errorf("non-whitespace content inside <scml> is not allowed")
 			}
 		case xml.EndElement:
 			if t.Name.Local == start.Name.Local {
 				if !sawConstants {
-					return nil, nil, nil, fmt.Errorf("<contract> block must contain a <constants> block")
+					return nil, nil, nil, fmt.Errorf("<scml> block must contain a <constants> block")
 				}
 				if len(orderedSections) == 0 {
-					return nil, nil, nil, fmt.Errorf("<contract> block must contain at least one <section>")
+					return nil, nil, nil, fmt.Errorf("<scml> block must contain at least one <section>")
 				}
 				return orderedConstants, constantsMap, orderedSections, nil
 			}
 		case xml.Comment, xml.Directive, xml.ProcInst:
 			// Ignore.
 		default:
-			return nil, nil, nil, fmt.Errorf("unsupported token inside <contract>: %T", tok)
+			return nil, nil, nil, fmt.Errorf("unsupported token inside <scml>: %T", tok)
 		}
 	}
 }
@@ -224,7 +283,15 @@ func parseSectionElement(decoder *xml.Decoder, start xml.StartElement, parentPat
 	if err != nil {
 		return nil, err
 	}
+	dependsOn, err := optionalDependsOnAttr(start)
+	if err != nil {
+		return nil, err
+	}
 	dataPolicy, err := optionalDataPolicyAttr(start)
+	if err != nil {
+		return nil, err
+	}
+	dataSource, err := optionalDataSourceAttr(start)
 	if err != nil {
 		return nil, err
 	}
@@ -232,8 +299,7 @@ func parseSectionElement(decoder *xml.Decoder, start xml.StartElement, parentPat
 		return nil, fmt.Errorf("invalid section name %q: must use letters, digits, underscores, and hyphens only", term)
 	}
 
-	term = canonicalSectionName(term)
-	pathTerm := canonicalSectionPathTerm(term)
+	pathTerm := strings.ToLower(term)
 	path := pathTerm
 	if parentPath != "" {
 		path = parentPath + "." + pathTerm
@@ -242,6 +308,8 @@ func parseSectionElement(decoder *xml.Decoder, start xml.StartElement, parentPat
 	node := &RouteNode{
 		Term:       term,
 		Path:       path,
+		DependsOn:  dependsOn,
+		DataSource: dataSource,
 		DataType:   dataType,
 		DataPolicy: dataPolicy,
 		Items:      make([]string, 0, 16),
@@ -285,7 +353,7 @@ func parseSectionElement(decoder *xml.Decoder, start xml.StartElement, parentPat
 			}
 		case xml.EndElement:
 			if t.Name.Local == start.Name.Local {
-				if len(node.Items) == 0 && len(node.Children) == 0 {
+				if dataSource == "" && len(node.Items) == 0 && len(node.Children) == 0 {
 					return nil, fmt.Errorf("section %q must contain item elements or nested sections", term)
 				}
 				return node, nil
@@ -378,8 +446,26 @@ func validateStartElement(start xml.StartElement) error {
 	}
 
 	seenAttrs := make(map[string]struct{}, len(start.Attr))
+	allowedAttrs := map[string]struct{}{}
+	switch name {
+	case "section":
+		allowedAttrs = map[string]struct{}{
+			"name":        {},
+			"depends-on":  {},
+			"data-type":   {},
+			"data-policy": {},
+			"data-source": {},
+		}
+	case "scml", "constants", "pre":
+		if len(start.Attr) != 0 {
+			return fmt.Errorf("<%s> does not allow attributes", name)
+		}
+	default:
+		return fmt.Errorf("unknown XML element <%s>", name)
+	}
+
 	for _, attr := range start.Attr {
-		if _, ok := SCMLLanguageConventions.Attributes[attr.Name.Local]; !ok {
+		if _, ok := allowedAttrs[attr.Name.Local]; !ok {
 			return fmt.Errorf("unknown XML attribute %q on <%s>", attr.Name.Local, name)
 		}
 		if _, exists := seenAttrs[attr.Name.Local]; exists {
@@ -389,13 +475,9 @@ func validateStartElement(start xml.StartElement) error {
 	}
 
 	switch name {
-	case "contract", "constants", "pre":
-		if len(start.Attr) != 0 {
-			return fmt.Errorf("<%s> does not allow attributes", name)
-		}
 	case "section":
-		if len(start.Attr) < 1 || len(start.Attr) > 3 {
-			return fmt.Errorf("<section> requires name and optional data-type/data-policy attributes")
+		if len(start.Attr) < 1 || len(start.Attr) > 5 {
+			return fmt.Errorf("<section> requires name and optional depends-on/data-type/data-policy/data-source attributes")
 		}
 		if _, err := requiredNameAttr(start); err != nil {
 			return err
@@ -425,42 +507,72 @@ func validateStartElement(start xml.StartElement) error {
 }
 
 func requiredNameAttr(start xml.StartElement) (string, error) {
-	for _, attr := range start.Attr {
-		if attr.Name.Local == "name" {
-			value := strings.TrimSpace(attr.Value)
-			if value == "" {
-				return "", fmt.Errorf("<section> name attribute cannot be empty")
-			}
-			return value, nil
-		}
+	value, ok, err := xmlAttrValue(start, "name")
+	if err != nil {
+		return "", fmt.Errorf("<section> name attribute cannot be empty")
+	}
+	if ok {
+		return value, nil
 	}
 	return "", fmt.Errorf("<section> requires a name attribute")
 }
 
 func optionalDataTypeAttr(start xml.StartElement) (string, error) {
-	for _, attr := range start.Attr {
-		if attr.Name.Local == "data-type" {
-			value := strings.TrimSpace(attr.Value)
-			if value == "" {
-				return "", fmt.Errorf("<section> data-type attribute cannot be empty")
-			}
-			return value, nil
-		}
+	value, ok, err := xmlAttrValue(start, "data-type")
+	if err != nil {
+		return "", fmt.Errorf("<section> data-type attribute cannot be empty")
+	}
+	if ok {
+		return value, nil
+	}
+	return "", nil
+}
+
+func optionalDependsOnAttr(start xml.StartElement) (string, error) {
+	value, ok, err := xmlAttrValue(start, "depends-on")
+	if err != nil {
+		return "", fmt.Errorf("<section> depends-on attribute cannot be empty")
+	}
+	if ok {
+		return value, nil
 	}
 	return "", nil
 }
 
 func optionalDataPolicyAttr(start xml.StartElement) (string, error) {
-	for _, attr := range start.Attr {
-		if attr.Name.Local == "data-policy" {
-			value := strings.TrimSpace(attr.Value)
-			if value == "" {
-				return "", fmt.Errorf("<section> data-policy attribute cannot be empty")
-			}
-			return value, nil
-		}
+	value, ok, err := xmlAttrValue(start, "data-policy")
+	if err != nil {
+		return "", fmt.Errorf("<section> data-policy attribute cannot be empty")
+	}
+	if ok {
+		return value, nil
 	}
 	return "", nil
+}
+
+func optionalDataSourceAttr(start xml.StartElement) (string, error) {
+	value, ok, err := xmlAttrValue(start, "data-source")
+	if err != nil {
+		return "", fmt.Errorf("<section> data-source attribute cannot be empty")
+	}
+	if ok {
+		return value, nil
+	}
+	return "", nil
+}
+
+func xmlAttrValue(start xml.StartElement, name string) (string, bool, error) {
+	for _, attr := range start.Attr {
+		if attr.Name.Local != name {
+			continue
+		}
+		value := strings.TrimSpace(attr.Value)
+		if value == "" {
+			return "", true, fmt.Errorf("attribute %q cannot be empty", name)
+		}
+		return value, true, nil
+	}
+	return "", false, nil
 }
 
 func isConstantIdentifier(input string) bool {
@@ -491,16 +603,32 @@ func isSectionIdentifier(input string) bool {
 	return true
 }
 
-func canonicalSectionName(input string) string {
-	return strings.ToUpper(strings.ReplaceAll(input, "-", "_"))
-}
-
-func canonicalSectionPathTerm(input string) string {
-	return strings.ToLower(strings.ReplaceAll(input, "-", "_"))
-}
-
 func unicodeIsDigit(b byte) bool {
 	return b >= '0' && b <= '9'
+}
+
+func validateSectionDependencies(sections []SectionEntry) error {
+	known := make(map[string]struct{}, len(sections))
+	for i := range sections {
+		known[sections[i].Name] = struct{}{}
+	}
+
+	for i := range sections {
+		if sections[i].DependsOn == "" {
+			continue
+		}
+		for _, dependency := range strings.Split(sections[i].DependsOn, ",") {
+			dependency = strings.TrimSpace(dependency)
+			if dependency == "" {
+				return fmt.Errorf("section %q has empty depends-on entry", sections[i].Name)
+			}
+			if _, ok := known[dependency]; !ok {
+				return fmt.Errorf("section %q depends-on unknown section %q", sections[i].Name, dependency)
+			}
+		}
+	}
+
+	return nil
 }
 
 func resolveConstants(sections []SectionEntry, constants map[string]string) error {

@@ -3,7 +3,8 @@
 A minimal, structured prompt framework for guiding code changes with precision.
 Should be iterative-friendly in mind and promote efficient back-and-forth.
 
-<!-- <contract> -->
+<!-- <scml> -->
+<!-- <import path="benchmark/contracts/SOLUTION.md" name="SOLUTION"/> -->
 <!-- <constants> -->
 <pre>
 SCOPE_CORE = "changes limited to explicitly listed files and functions"
@@ -11,8 +12,9 @@ GUARDRAIL = "no full file rewrites or refactors"
 </pre>
 <!-- </constants> -->
 
-<!-- <section name="issue"> -->
+
 ## ISSUE
+<!-- <section name="issue"> -->
   - Describe the objective, change request, or observed problem.
   - Use concrete examples when applicable (before → after).
   - No speculation, only defined intent or observed behavior.
@@ -22,8 +24,9 @@ GUARDRAIL = "no full file rewrites or refactors"
   - ${GUARDRAIL}
 <!-- </section> -->
 
-<!-- <section name="root-cause"> -->
+
 ## ROOT CAUSE
+<!-- <section name="root-cause"> -->
   - Identify the specific mechanism causing the issue.
   - Point to the exact function / logic responsible.
   - Explain *why* the current behavior happens.
@@ -31,22 +34,23 @@ GUARDRAIL = "no full file rewrites or refactors"
   - conditions under which the issue manifests
 <!-- </section> -->
 
-<!-- <section name="solution"> -->
+
 ## SOLUTION
-  - Define the intended behavior clearly.
-  - State the rule or invariant to enforce.
-  - Do not describe implementation yet.
-  - non-goals / explicitly unchanged behavior
-  - expected input → output mapping examples
+<!-- <section name="solution" data-source="SOLUTION.solution"> -->
 <!-- </section> -->
 
-<!-- <section name="execution"> -->
+
 ## EXECUTION
+<!-- <section name="execution"> -->
 <!-- <section name="scope" data-type="file-list" data-policy="write"> -->
 > #### FILE SCOPE
-  - packages/cli/*
-  - packages/server/server.go
-  - packages/telemetry/stats.go
+  - report.txt
+  - report.txt2
+  - report.txt3
+  - report.txt4
+  - report.txt5
+
+
 <!-- </section> -->
 <!-- <section name="steps"> -->
 > #### STEPS
@@ -71,8 +75,8 @@ GUARDRAIL = "no full file rewrites or refactors"
 <!-- </section> -->
 <!-- </section> -->
 
-<!-- <section name="validation"> -->
 ## VALIDATION
+<!-- <section name="validation"> -->
   - List concrete checks:
   - visual outputs
   - edge cases
@@ -84,4 +88,4 @@ GUARDRAIL = "no full file rewrites or refactors"
   - ${SCOPE_CORE}
   - ${GUARDRAIL}
 <!-- </section> -->
-<!-- </contract> -->
+<!-- </scml> -->

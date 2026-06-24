@@ -3,6 +3,7 @@ package scml
 import (
 	"bufio"
 	"fmt"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"unicode"
@@ -76,16 +77,27 @@ func copyStringSlice(in []string) []string {
 	return out
 }
 
+func cleanPath(path string) string {
+	trimmed := strings.TrimSpace(path)
+	if trimmed == "" {
+		return ""
+	}
+	return filepath.Clean(trimmed)
+}
+
 func copyRouteNodes(in []RouteNode) []RouteNode {
 	out := make([]RouteNode, len(in))
 	for i := range in {
 		out[i] = RouteNode{
 			Term:       in[i].Term,
 			Path:       in[i].Path,
+			DependsOn:  in[i].DependsOn,
+			DataSource: in[i].DataSource,
 			DataType:   in[i].DataType,
 			DataPolicy: in[i].DataPolicy,
 			Items:      copyStringSlice(in[i].Items),
 			Children:   copyRouteNodes(in[i].Children),
+			sourceDir:  in[i].sourceDir,
 		}
 	}
 	return out
@@ -94,10 +106,13 @@ func copyRouteNodes(in []RouteNode) []RouteNode {
 func copySectionEntry(in SectionEntry) SectionEntry {
 	return SectionEntry{
 		Name:       in.Name,
+		DependsOn:  in.DependsOn,
+		DataSource: in.DataSource,
 		DataType:   in.DataType,
 		DataPolicy: in.DataPolicy,
 		Items:      copyStringSlice(in.Items),
 		Routes:     copyRouteNodes(in.Routes),
+		sourceDir:  in.sourceDir,
 	}
 }
 
@@ -117,6 +132,8 @@ func toTemplateRoutes(in []RouteNode, symbolState map[string]int) []TemplateRout
 		out[i] = TemplateRoute{
 			Term:       in[i].Term,
 			Path:       in[i].Path,
+			DependsOn:  in[i].DependsOn,
+			DataSource: in[i].DataSource,
 			DataType:   in[i].DataType,
 			DataPolicy: in[i].DataPolicy,
 			Items:      copyStringSlice(in[i].Items),
@@ -150,10 +167,11 @@ func buildRouteTree(children []*routeBuilder) []RouteNode {
 	out := make([]RouteNode, len(children))
 	for i := range children {
 		out[i] = RouteNode{
-			Term:     children[i].term,
-			Path:     children[i].path,
-			Items:    copyStringSlice(children[i].items),
-			Children: buildRouteTree(children[i].children),
+			Term:      children[i].term,
+			Path:      children[i].path,
+			Items:     copyStringSlice(children[i].items),
+			Children:  buildRouteTree(children[i].children),
+			sourceDir: "",
 		}
 	}
 	return out

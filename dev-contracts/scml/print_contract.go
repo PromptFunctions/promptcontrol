@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/PromptFunctions/promptcontrol/DevContracts/scml"
+	"github.com/PromptFunctions/promptcontrol/dev-contracts/scml"
 )
 
 func main() {
