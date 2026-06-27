@@ -32,16 +32,7 @@ func (l *dependencyLoader) load(path string) (*Contract, error) {
 	if err != nil {
 		return nil, err
 	}
-	contract, err := l.loadResolved(resolvedPath)
-	if err != nil {
-		return nil, err
-	}
-	if !l.opts.skipWriteValidation {
-		if _, err := ResolveContractWriteTargetsFS(contract, l.opts.fs); err != nil {
-			return nil, err
-		}
-	}
-	return contract, nil
+	return l.loadResolved(resolvedPath)
 }
 
 func (l *dependencyLoader) loadFromReader(r io.Reader, baseDir string) (*Contract, error) {
@@ -51,11 +42,6 @@ func (l *dependencyLoader) loadFromReader(r io.Reader, baseDir string) (*Contrac
 	}
 	if err := l.resolveContract(contract, baseDir); err != nil {
 		return nil, err
-	}
-	if !l.opts.skipWriteValidation {
-		if _, err := ResolveContractWriteTargetsFS(contract, l.opts.fs); err != nil {
-			return nil, err
-		}
 	}
 	return contract, nil
 }
@@ -87,7 +73,6 @@ func (l *dependencyLoader) loadResolved(path string) (*Contract, error) {
 
 func (l *dependencyLoader) resolveContract(contract *Contract, _ string) error {
 	if len(contract.Imports) == 0 {
-		refreshContractViews(contract)
 		return nil
 	}
 
@@ -114,8 +99,6 @@ func (l *dependencyLoader) resolveContract(contract *Contract, _ string) error {
 	if err := bindSectionSources(contract.OrderedSections, importedModules); err != nil {
 		return err
 	}
-
-	refreshContractViews(contract)
 	return nil
 }
 
@@ -310,17 +293,17 @@ func isImportCommentCandidate(line string) bool {
 	return strings.HasPrefix(line, "<!-- <import ") && strings.HasSuffix(line, " -->")
 }
 
-func refreshContractViews(contract *Contract) {
-	sectionsMap := make(map[string][]string, len(contract.OrderedSections))
-	for _, section := range contract.OrderedSections {
-		sectionsMap[section.Name] = copyStringSlice(section.Items)
-	}
-	contract.Sections = sectionsMap
-	contract.SectionRoutes = buildSectionRoutes(contract.OrderedSections)
-}
-
 func ResolveContractWriteTargets(contract *Contract) (WriteTargetResolution, error) {
 	return ResolveContractWriteTargetsFS(contract, DefaultFS())
+}
+
+func ValidateContractWriteTargets(contract *Contract) error {
+	return ValidateContractWriteTargetsFS(contract, DefaultFS())
+}
+
+func ValidateContractWriteTargetsFS(contract *Contract, fs FileSystem) error {
+	_, err := ResolveContractWriteTargetsFS(contract, fs)
+	return err
 }
 
 func ResolveContractWriteTargetsFS(contract *Contract, fs FileSystem) (WriteTargetResolution, error) {

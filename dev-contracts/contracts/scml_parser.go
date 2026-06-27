@@ -16,7 +16,14 @@ var sectionDataTypeValues = map[string]struct{}{
 }
 
 func ParseFile(path string) (*Contract, error) {
-	return ParseFileWithOptions(path, nil)
+	contract, err := ParseFileWithOptions(path, nil)
+	if err != nil {
+		return nil, err
+	}
+	if err := ValidateContractWriteTargets(contract); err != nil {
+		return nil, err
+	}
+	return contract, nil
 }
 
 func ParseFileWithOptions(path string, opts *ParseOptions) (*Contract, error) {
@@ -77,13 +84,12 @@ func parseContractContent(content, baseDir string) (*Contract, error) {
 	assignSectionSourceDirs(orderedSections, baseDir)
 
 	contract := &Contract{
-		Title:            title,
-		Imports:          imports,
-		Constants:        constantsMap,
+		Title:   title,
+		Imports: imports,
+
 		OrderedConstants: orderedConstants,
 		OrderedSections:  orderedSections,
 	}
-	refreshContractViews(contract)
 	return contract, nil
 }
 
@@ -441,7 +447,7 @@ func validateStartElement(start xml.StartElement) error {
 		}
 		return nil
 	}
-	if _, ok := SCMLLanguageConventions.Types[name]; !ok {
+	if _, ok := allowedSCMLTypes[name]; !ok {
 		return fmt.Errorf("unknown XML element <%s>", name)
 	}
 

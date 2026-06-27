@@ -36,10 +36,7 @@ type SectionEntry struct {
 type Contract struct {
 	Title string
 
-	Imports       []ImportEntry
-	Sections      map[string][]string
-	Constants     map[string]string
-	SectionRoutes map[string]map[string][]string
+	Imports []ImportEntry
 
 	OrderedConstants []ConstantEntry
 	OrderedSections  []SectionEntry

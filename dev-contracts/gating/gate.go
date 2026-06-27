@@ -26,7 +26,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/PromptFunctions/promptcontrol/dev-contracts/scml"
+	scml "github.com/PromptFunctions/promptcontrol/dev-contracts/contracts"
 )
 
 const (

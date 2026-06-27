@@ -212,27 +212,6 @@ func FilterFileMatches(matches []string, fs FileSystem) []string {
 	return filtered
 }
 
-func scmlSearchRoots() []string {
-	raw := strings.TrimSpace(os.Getenv("SCMLPATH"))
-	if raw == "" {
-		return []string{"."}
-	}
-
-	parts := strings.Split(raw, string(os.PathListSeparator))
-	roots := make([]string, 0, len(parts))
-	for _, part := range parts {
-		root := strings.TrimSpace(part)
-		if root == "" {
-			continue
-		}
-		roots = append(roots, root)
-	}
-	if len(roots) == 0 {
-		return []string{"."}
-	}
-	return roots
-}
-
 func fileExists(path string) bool {
 	return fileExistsFS(path, DefaultFS())
 }

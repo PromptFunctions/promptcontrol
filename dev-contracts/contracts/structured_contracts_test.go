@@ -16,31 +16,33 @@ import (
 
 func TestSCMLLanguageConventions(t *testing.T) {
 	expectedTypes := []string{"scml", "constants", "pre", "section"}
+	types := AllowedSCMLTypes()
 	for _, typ := range expectedTypes {
-		if _, ok := SCMLLanguageConventions.Types[typ]; !ok {
+		if !containsString(types, typ) {
 			t.Fatalf("missing allowed type %q", typ)
 		}
 	}
-	if len(SCMLLanguageConventions.Types) != len(expectedTypes) {
-		t.Fatalf("unexpected number of allowed types: got %d want %d", len(SCMLLanguageConventions.Types), len(expectedTypes))
+	if len(types) != len(expectedTypes) {
+		t.Fatalf("unexpected number of allowed types: got %d want %d", len(types), len(expectedTypes))
 	}
-	if _, ok := SCMLLanguageConventions.Attributes["name"]; !ok {
+	attributes := AllowedSCMLAttributes()
+	if !containsString(attributes, "name") {
 		t.Fatalf("missing allowed attribute name")
 	}
-	if _, ok := SCMLLanguageConventions.Attributes["depends-on"]; !ok {
+	if !containsString(attributes, "depends-on") {
 		t.Fatalf("missing allowed attribute depends-on")
 	}
-	if _, ok := SCMLLanguageConventions.Attributes["data-type"]; !ok {
+	if !containsString(attributes, "data-type") {
 		t.Fatalf("missing allowed attribute data-type")
 	}
-	if _, ok := SCMLLanguageConventions.Attributes["data-policy"]; !ok {
+	if !containsString(attributes, "data-policy") {
 		t.Fatalf("missing allowed attribute data-policy")
 	}
-	if _, ok := SCMLLanguageConventions.Attributes["data-source"]; !ok {
+	if !containsString(attributes, "data-source") {
 		t.Fatalf("missing allowed attribute data-source")
 	}
-	if len(SCMLLanguageConventions.Attributes) != 5 {
-		t.Fatalf("unexpected number of allowed attributes: got %d want 5", len(SCMLLanguageConventions.Attributes))
+	if len(attributes) != 5 {
+		t.Fatalf("unexpected number of allowed attributes: got %d want 5", len(attributes))
 	}
 }
 
@@ -127,6 +129,8 @@ GUARDRAIL = "no full file rewrites or refactors"
 	if err != nil {
 		t.Fatalf("ParseFile(%q) failed: %v", contractPath, err)
 	}
+	sectionsView := contract.SectionsView()
+	constantsView := contract.ConstantsView()
 
 	wantSections := []string{"issue", "root-cause", "solution", "execution", "validation"}
 	if len(contract.OrderedSections) != len(wantSections) {
@@ -138,7 +142,7 @@ GUARDRAIL = "no full file rewrites or refactors"
 		}
 	}
 
-	if got := contract.Sections["issue"]; len(got) < 2 {
+	if got := sectionsView["issue"]; len(got) < 2 {
 		t.Fatalf("ISSUE must keep its top-level list items, got %v", got)
 	} else {
 		if got[0] != "Describe the objective, change request, or observed problem." {
@@ -149,13 +153,13 @@ GUARDRAIL = "no full file rewrites or refactors"
 		}
 	}
 
-	if got := contract.Sections["execution"]; len(got) != 0 {
+	if got := sectionsView["execution"]; len(got) != 0 {
 		t.Fatalf("EXECUTION should have no direct section items in the current fixture, got %v", got)
 	}
 	if got := contract.OrderedSections[2]; got.DataType != "file-list" || got.DataPolicy != "write" || len(got.Items) != 1 {
 		t.Fatalf("SOLUTION section should be imported from module, got %+v", got)
 	}
-	if got := contract.Sections["solution"]; len(got) != 1 || got[0] != "report.txt" {
+	if got := sectionsView["solution"]; len(got) != 1 || got[0] != "report.txt" {
 		t.Fatalf("unexpected imported SOLUTION items: %v", got)
 	}
 	if len(contract.Imports) != 1 {
@@ -168,10 +172,10 @@ GUARDRAIL = "no full file rewrites or refactors"
 		t.Fatalf("unexpected write allowlist: %v", got)
 	}
 
-	if got := contract.Constants["SCOPE_CORE"]; got != "changes limited to explicitly listed files and functions" {
+	if got := constantsView["SCOPE_CORE"]; got != "changes limited to explicitly listed files and functions" {
 		t.Fatalf("unexpected SCOPE_CORE value: %q", got)
 	}
-	if got := contract.Constants["GUARDRAIL"]; got != "no full file rewrites or refactors" {
+	if got := constantsView["GUARDRAIL"]; got != "no full file rewrites or refactors" {
 		t.Fatalf("unexpected GUARDRAIL value: %q", got)
 	}
 
@@ -426,7 +430,7 @@ SCOPE_CORE = "scope"
 		t.Fatalf("expected no file-list validation entries for nested route fixture, got %v", validation.FileLists)
 	}
 
-	routesBySection, ok := contract.SectionRoutes["execution"]
+	routesBySection, ok := contract.SectionRoutesView()["execution"]
 	if !ok {
 		t.Fatalf("expected section routes for execution")
 	}
@@ -437,7 +441,7 @@ SCOPE_CORE = "scope"
 		}
 	}
 
-	if got := contract.Sections["EXECUTION"]; len(got) != 1 || got[0] != "top level item" {
+	if got := contract.SectionsView()["EXECUTION"]; len(got) != 1 || got[0] != "top level item" {
 		t.Fatalf("unexpected section items map value: %v", got)
 	}
 
@@ -496,7 +500,7 @@ K = "v"
 		t.Fatalf("unexpected nested route tree: %+v", got)
 	}
 
-	routesBySection, ok := contract.SectionRoutes["root-cause"]
+	routesBySection, ok := contract.SectionRoutesView()["root-cause"]
 	if !ok {
 		t.Fatalf("expected route map entry for root-cause")
 	}
@@ -912,7 +916,7 @@ ROOT = "/workspace/root"
 		if got := contract.OrderedSections[0]; got.DataType != "file-list" || got.DataPolicy != "write" {
 			t.Fatalf("imported section not bound correctly: %+v", got)
 		}
-		if got := contract.Sections["solution"]; len(got) != 1 || got[0] != "report.txt" {
+		if got := contract.SectionsView()["solution"]; len(got) != 1 || got[0] != "report.txt" {
 			t.Fatalf("imported body should replace local body, got %v", got)
 		}
 		if !contract.PolicyView().Allows(PolicyActionWrite, "report.txt") {
@@ -965,7 +969,7 @@ ROOT = "/workspace/root"
 		if len(contract.Imports) != 1 || contract.Imports[0].Name != "" {
 			t.Fatalf("unexpected raw import metadata: %+v", contract.Imports)
 		}
-		if got := contract.Sections["builder"]; len(got) != 1 || got[0] != "output.txt" {
+		if got := contract.SectionsView()["builder"]; len(got) != 1 || got[0] != "output.txt" {
 			t.Fatalf("default alias import did not bind body correctly: %v", got)
 		}
 	})
@@ -1012,7 +1016,7 @@ ROOT = "/workspace/root"
 		if err != nil {
 			t.Fatalf("ParseFile plain scml import failed: %v", err)
 		}
-		if got := contract.Sections["library"]; len(got) != 1 || got[0] != "library.txt" {
+		if got := contract.SectionsView()["library"]; len(got) != 1 || got[0] != "library.txt" {
 			t.Fatalf("plain scml import did not bind body correctly: %v", got)
 		}
 	})
@@ -1247,7 +1251,7 @@ ROOT = "/workspace/root"
 		if err != nil {
 			t.Fatalf("ParseFile recursive import contract failed: %v", err)
 		}
-		if got := contract.Sections["mid"]; len(got) != 1 || got[0] != "leaf.txt" {
+		if got := contract.SectionsView()["mid"]; len(got) != 1 || got[0] != "leaf.txt" {
 			t.Fatalf("recursive import did not bind through intermediate module: %v", got)
 		}
 
@@ -1340,7 +1344,7 @@ ROOT = "/workspace/root"
 }
 
 func TestParse_WithOptions(t *testing.T) {
-	t.Run("reader skip write validation", func(t *testing.T) {
+	t.Run("reader parse remains parse-only", func(t *testing.T) {
 		contractText := `# Reader Contract
 
 <!-- <scml> -->
@@ -1374,7 +1378,7 @@ ROOT = "/workspace/root"
 		}
 	})
 
-	t.Run("reader keeps write validation by default", func(t *testing.T) {
+	t.Run("reader uses explicit write-target validation", func(t *testing.T) {
 		contractText := `# Reader Contract
 
 <!-- <scml> -->
@@ -1391,9 +1395,12 @@ ROOT = "/workspace/root"
 <!-- </scml> -->
 `
 
-		_, err := Parse(strings.NewReader(contractText), &ParseOptions{BaseDir: "/virtual/contracts"})
-		if err == nil || err.Error() != "no targeted files were found on disk" {
-			t.Fatalf("expected write validation error, got %v", err)
+		contract, err := Parse(strings.NewReader(contractText), &ParseOptions{BaseDir: "/virtual/contracts"})
+		if err != nil {
+			t.Fatalf("Parse(reader) failed: %v", err)
+		}
+		if err := ValidateContractWriteTargets(contract); err == nil || err.Error() != "no targeted files were found on disk" {
+			t.Fatalf("expected explicit write validation error, got %v", err)
 		}
 	})
 
@@ -1437,7 +1444,7 @@ SOLUTION_FILE = "report.txt"
 		if err != nil {
 			t.Fatalf("ParseFileWithOptions failed: %v", err)
 		}
-		if got := contract.Sections["solution"]; len(got) != 1 || got[0] != "report.txt" {
+		if got := contract.SectionsView()["solution"]; len(got) != 1 || got[0] != "report.txt" {
 			t.Fatalf("unexpected imported section items: %v", got)
 		}
 		if got := contract.PolicyView().WriteAllowlist; len(got) != 1 || got[0] != "report.txt" {
@@ -1470,6 +1477,15 @@ func writeNamedContract(t *testing.T, dir, name, content string) string {
 		t.Fatalf("WriteFile(%q) failed: %v", path, err)
 	}
 	return path
+}
+
+func containsString(values []string, target string) bool {
+	for _, value := range values {
+		if value == target {
+			return true
+		}
+	}
+	return false
 }
 
 type mockFS struct {

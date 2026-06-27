@@ -12,7 +12,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/PromptFunctions/promptcontrol/dev-contracts/scml"
+	scml "github.com/PromptFunctions/promptcontrol/dev-contracts/contracts"
 )
 
 type stubClient struct {

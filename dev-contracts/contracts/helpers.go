@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"fmt"
 	"path/filepath"
+	"sort"
 	"strconv"
 	"strings"
 	"unicode"
@@ -114,6 +115,35 @@ func copySectionEntry(in SectionEntry) SectionEntry {
 		Routes:     copyRouteNodes(in.Routes),
 		sourceDir:  in.sourceDir,
 	}
+}
+
+func copyConstantsView(in []ConstantEntry) map[string]string {
+	out := make(map[string]string, len(in))
+	for i := range in {
+		out[in[i].Key] = in[i].Value
+	}
+	return out
+}
+
+func copySectionsView(in []SectionEntry) map[string][]string {
+	out := make(map[string][]string, len(in))
+	for i := range in {
+		out[in[i].Name] = copyStringSlice(in[i].Items)
+	}
+	return out
+}
+
+func copySectionRoutesView(in []SectionEntry) map[string]map[string][]string {
+	return buildSectionRoutes(in)
+}
+
+func copySortedKeys(in map[string]struct{}) []string {
+	out := make([]string, 0, len(in))
+	for key := range in {
+		out = append(out, key)
+	}
+	sort.Strings(out)
+	return out
 }
 
 func toTemplateRoutes(in []RouteNode, symbolState map[string]int) []TemplateRoute {

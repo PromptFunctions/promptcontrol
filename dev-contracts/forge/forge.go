@@ -10,8 +10,8 @@ import (
 	"strings"
 	"time"
 
+	scml "github.com/PromptFunctions/promptcontrol/dev-contracts/contracts"
 	"github.com/PromptFunctions/promptcontrol/dev-contracts/gating"
-	"github.com/PromptFunctions/promptcontrol/dev-contracts/scml"
 )
 
 const (

@@ -4,6 +4,7 @@ import (
 	iofs "io/fs"
 	"os"
 	"path/filepath"
+	"strings"
 )
 
 type FileSystem interface {
@@ -74,7 +75,7 @@ func (o resolvedOptions) searchRoots() []string {
 		}
 		return roots
 	}
-	return scmlSearchRoots()
+	return defaultSCMLSearchRoots()
 }
 
 func fsOrDefault(fs FileSystem) FileSystem {
@@ -82,4 +83,25 @@ func fsOrDefault(fs FileSystem) FileSystem {
 		return DefaultFS()
 	}
 	return fs
+}
+
+func defaultSCMLSearchRoots() []string {
+	raw := strings.TrimSpace(os.Getenv("SCMLPATH"))
+	if raw == "" {
+		return []string{"."}
+	}
+
+	parts := strings.Split(raw, string(os.PathListSeparator))
+	roots := make([]string, 0, len(parts))
+	for _, part := range parts {
+		root := strings.TrimSpace(part)
+		if root == "" {
+			continue
+		}
+		roots = append(roots, root)
+	}
+	if len(roots) == 0 {
+		return []string{"."}
+	}
+	return roots
 }

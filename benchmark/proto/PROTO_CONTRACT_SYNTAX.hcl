@@ -41,7 +41,7 @@ contract {
 
   # SOLUTION
   section "solution" {
-    source = SOLUTION.solution
+    description = SOLUTION.common-solution.description
   }
 
   # EXECUTION

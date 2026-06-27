@@ -5,7 +5,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/PromptFunctions/promptcontrol/dev-contracts/scml"
+	scml "github.com/PromptFunctions/promptcontrol/dev-contracts/contracts"
 )
 
 func TestSCMLPolicyAllowlist(t *testing.T) {

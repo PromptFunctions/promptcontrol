@@ -79,58 +79,28 @@ type TemplateContract struct {
 	Sections  []TemplateSection
 }
 
+func (c *Contract) ConstantsView() map[string]string {
+	return copyConstantsView(c.OrderedConstants)
+}
+
+func (c *Contract) SectionsView() map[string][]string {
+	return copySectionsView(c.OrderedSections)
+}
+
+func (c *Contract) SectionRoutesView() map[string]map[string][]string {
+	return copySectionRoutesView(c.OrderedSections)
+}
+
 func (c *Contract) RenderView() RenderContract {
 	constants := make([]ConstantEntry, len(c.OrderedConstants))
 	copy(constants, c.OrderedConstants)
-
-	sections := make([]RenderSectionEntry, len(c.OrderedSections))
-	for i := range c.OrderedSections {
-		sections[i] = RenderSectionEntry{
-			Name:       c.OrderedSections[i].Name,
-			DependsOn:  c.OrderedSections[i].DependsOn,
-			DataSource: c.OrderedSections[i].DataSource,
-			DataType:   c.OrderedSections[i].DataType,
-			DataPolicy: c.OrderedSections[i].DataPolicy,
-			Items:      copyStringSlice(c.OrderedSections[i].Items),
-			Routes:     flattenRenderRoutes(c.OrderedSections[i].Routes),
-		}
-	}
+	sections, _ := buildRenderedSections(c.OrderedSections)
 
 	return RenderContract{
 		Title:     c.Title,
 		Constants: constants,
 		Sections:  sections,
 	}
-}
-
-func flattenRenderRoutes(routes []RouteNode) []RenderRouteEntry {
-	out := make([]RenderRouteEntry, 0, countRenderRoutes(routes))
-	return appendFlattenedRenderRoutes(out, routes)
-}
-
-func appendFlattenedRenderRoutes(out []RenderRouteEntry, routes []RouteNode) []RenderRouteEntry {
-	for i := range routes {
-		out = append(out, RenderRouteEntry{
-			Term:       routes[i].Term,
-			Path:       routes[i].Path,
-			DependsOn:  routes[i].DependsOn,
-			DataSource: routes[i].DataSource,
-			DataType:   routes[i].DataType,
-			DataPolicy: routes[i].DataPolicy,
-			Items:      copyStringSlice(routes[i].Items),
-		})
-		out = appendFlattenedRenderRoutes(out, routes[i].Children)
-	}
-	return out
-}
-
-func countRenderRoutes(routes []RouteNode) int {
-	total := 0
-	for i := range routes {
-		total++
-		total += countRenderRoutes(routes[i].Children)
-	}
-	return total
 }
 
 func (c *Contract) TemplateView() TemplateContract {

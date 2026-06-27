@@ -7,7 +7,7 @@ import (
 	"slices"
 	"testing"
 
-	"github.com/PromptFunctions/promptcontrol/dev-contracts/scml"
+	scml "github.com/PromptFunctions/promptcontrol/dev-contracts/contracts"
 )
 
 func TestValidateContractCompleted(t *testing.T) {
