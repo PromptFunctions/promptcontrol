@@ -18,7 +18,7 @@ import (
 )
 
 const (
-	defaultAnthropicAPIKey = "sk-..."
+	defaultAnthropicAPIKey = "sk-ant-..."
 	defaultAnthropicModel  = "claude-haiku-4-5"
 	defaultMaxTokens       = int64(4096)
 )

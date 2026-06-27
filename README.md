@@ -1,6 +1,6 @@
 # PromptControl
 
-PromptControl is a contract-based workflow library for structured LLM output.
+A contract-based workflow library for LLM workload.
 
 At a high level, it turns Markdown into contracts and repeatable, software-enforced workflows. The idea is simple: define the job as a contract, ask the model to fill that contract, then validate the result before the system accepts it.
 
@@ -48,6 +48,14 @@ TARGET = "src/service.go"
 <!-- </scml> -->
 ```
 
+
+## Typical Flow
+
+1. Write a contract in SCML.
+2. `contracts` treats that file as a contract for an LLM to fill or parses an already filled one to return an execution DAG.
+3. `gating` validates the result against the contract.
+4. `forge` orchestrates both `contracts` and `gating` to forge the contract.
+
 ## Packages
 
 - [`dev-contracts/forge`](./dev-contracts/forge/README.md)
@@ -56,16 +64,3 @@ TARGET = "src/service.go"
   SCML parsing, rendering, schema, validation metadata, and policy views.
 - [`dev-contracts/gating`](./dev-contracts/gating/README.md)
   Deterministic JSON validation used by `forge`.
-
-## Typical Flow
-
-1. Write a contract in SCML.
-2. Let `contracts` turn that file into a structured reference.
-3. Let `gating` define what a valid result must look like.
-4. Call `forge.RunFile(...)` to run the full loop and return final JSON.
-
-## Start Here
-
-- If you want to use Prompt Control in an app, read [`dev-contracts/forge/README.md`](./dev-contracts/forge/README.md).
-- If you want to author or parse SCML directly, read [`dev-contracts/contracts/README.md`](./dev-contracts/contracts/README.md).
-- If you need low-level validation only, read [`dev-contracts/gating/README.md`](./dev-contracts/gating/README.md).
