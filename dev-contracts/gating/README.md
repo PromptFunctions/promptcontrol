@@ -1,13 +1,20 @@
 # gating
 
-`gating` is the low-level validator used by `forge`.
+`gating` is the final check.
 
-It checks a candidate JSON object against a rendered contract reference and returns a deterministic result:
+It does not generate anything. It decides whether a JSON result is acceptable against a rendered contract reference and a validation spec.
 
-- `completed`
-- `missing_fields`
+## At a glance
 
-Most users do not need this package directly. Use [`../forge`](../forge/README.md) unless you want custom orchestration.
+- input:
+  - candidate JSON
+  - reference render
+  - validation spec
+- output:
+  - `completed`
+  - or deterministic missing items
+
+Most users do not need this package directly. Use [`../forge`](../forge/README.md) unless you already own your own LLM loop.
 
 ## Core API
 

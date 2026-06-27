@@ -1,13 +1,18 @@
 # contracts
 
-`contracts` is the SCML package inside Prompt Control.
+`contracts` is the SCML engine room in Prompt Control.
 
-It parses comment-wrapped SCML files, resolves imports and constants, and gives you the views used by the rest of the system:
+It takes human-written contract files and turns them into structured views the rest of the system can use. Think of it as the compiler for Prompt Control contracts.
 
-- `RenderView()` for the rendered JSON shape
-- `RenderSchema()` for structured-output schema generation
-- `RenderValidation()` for file-list validation metadata
-- `PolicyView()` for derived read/write policy data
+## At a glance
+
+- input: SCML contract
+- output:
+  - parsed contract model
+  - rendered JSON shape
+  - structured-output schema
+  - validation metadata
+  - derived policy view
 
 Most applications should use [`../forge`](../forge/README.md) instead of calling this package directly.
 
@@ -38,6 +43,6 @@ func main() {
 
 - you are authoring or debugging SCML
 - you want direct access to the parsed contract model
-- you need render/schema/validation views without the full forge loop
+- you need render, schema, validation, or policy views without the full forge loop
 
 For the normal app workflow, use [`../forge`](../forge/README.md).

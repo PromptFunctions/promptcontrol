@@ -1,8 +1,18 @@
 # forge
 
-`forge` is the main entrypoint for Prompt Control.
+`forge` is the front door.
 
-Give it a contract path and an LLM client. It loads the SCML contract, builds the JSON scaffold, runs the retry loop, validates the output, and returns the final JSON.
+If you want Prompt Control to do the whole job, this is the package. It loads the SCML contract, builds the JSON scaffold, runs the LLM loop, validates retries, and returns the final JSON.
+
+## Flow
+
+- contract path in
+- scaffold built
+- LLM called
+- validator retries
+- final JSON out
+
+It saves you from wiring contracts, prompts, validation, and retries yourself.
 
 ## Minimal Shape
 
